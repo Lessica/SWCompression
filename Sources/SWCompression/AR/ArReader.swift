@@ -26,7 +26,8 @@ public struct ArReader {
             return try transform(entry)
         }
     }
-
+    
+    @discardableResult
     public mutating func read() throws -> ArEntry? {
         let headerData = try getData(size: ArHeader.length)
         if headerData.count == 0 {
@@ -53,6 +54,33 @@ public struct ArReader {
         let info = ArEntryInfo(header)
         try set(offset: dataStartOffset + UInt64(truncatingIfNeeded: header.size.roundToEven()))
         return ArEntry(info: info, data: entryData)
+    }
+    
+    @discardableResult
+    public mutating func next() throws -> ArEntryInfo? {
+        let headerData = try getData(size: ArHeader.length)
+        if headerData.count == 0 {
+            return nil
+        } else if headerData.count < ArHeader.length {
+            throw DataError.truncated
+        }
+        assert(headerData.count == ArHeader.length)
+        
+        let headerReader = LittleEndianByteReader(data: headerData)
+        let header = try ArHeader(headerReader)
+
+        // Differ from `TarReader`, we must proceed all 60 bytes initialized for the header.
+        assert(headerReader.isFinished)
+
+        // Check, just in case, since we use blockStartIndex = -1 when creating AR containers.
+        assert(header.blockStartIndex >= 0)
+
+        // Will not copy actual data in this context
+        let dataStartOffset = try getOffset()
+        
+        let info = ArEntryInfo(header)
+        try set(offset: dataStartOffset + UInt64(truncatingIfNeeded: header.size.roundToEven()))
+        return info
     }
 
     private func getOffset() throws -> UInt64 {

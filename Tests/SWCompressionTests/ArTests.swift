@@ -104,11 +104,8 @@ class ArTests: XCTestCase {
 
     func testEmptyContainer() throws {
         let testData = try Constants.data(forTest: "test_empty", withType: ArTests.testType)
-
         XCTAssertEqual(try ArContainer.formatOf(container: testData), .bsd)
-
         let entries = try ArContainer.open(container: testData)
-
         XCTAssertEqual(entries.isEmpty, true)
     }
 
@@ -118,10 +115,12 @@ class ArTests: XCTestCase {
         XCTAssertEqual(try ArContainer.formatOf(container: testData), .bsd)
 
         let entryInfoList = try ArContainer.info(container: testData)
-        dump(entryInfoList)
+        XCTAssertNotNil(entryInfoList.last?.size)
+        XCTAssertGreaterThan(entryInfoList.last!.size!, 20_000_000)
         
         let entryList = try ArContainer.open(container: testData)
-        dump(entryList)
+        XCTAssertNotNil(entryList.last?.data)
+        XCTAssertGreaterThan(entryList.last!.data!.count, 20_000_000)
     }
 
     func testBigNumField() throws {

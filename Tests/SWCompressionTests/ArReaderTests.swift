@@ -25,10 +25,11 @@ class ArReaderTests: XCTestCase {
     func test() throws {
         let testHandle = try Constants.handle(forTest: "test_classdump", withType: ArReaderTests.testType)
         var reader = try ArReader(fileHandle: testHandle)
+        
         var isFinished = false
         var entriesCount = 0
         while !isFinished {
-            isFinished = try reader.process { (entry: ArEntry?) -> Bool in
+            isFinished = try reader.process { entry -> Bool in
                 guard let entry = entry else {
                     return true
                 }
@@ -69,172 +70,119 @@ class ArReaderTests: XCTestCase {
                 return false
             }
         }
+        
         XCTAssertEqual(entriesCount, 3)
+        
+        // Test that reading after reaching EOF returns nil.
+        XCTAssertNil(try reader.read())
 
         try testHandle.closeCompat()
     }
     
-//    func testEmptyFile() throws {
-//        let testHandle = try Constants.handle(forTest: "test_empty_file", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        try reader.process { (entry: TarEntry?) in
-//            XCTAssertNotNil(entry)
-//            XCTAssertEqual(entry!.info.name, "empty_file")
-//            XCTAssertEqual(entry!.info.type, .regular)
-//            XCTAssertEqual(entry!.info.size, 0)
-//            XCTAssertEqual(entry!.info.ownerID, 501)
-//            XCTAssertEqual(entry!.info.groupID, 20)
-//            XCTAssertEqual(entry!.info.ownerUserName, "timofeysolomko")
-//            XCTAssertEqual(entry!.info.ownerGroupName, "staff")
-//            XCTAssertEqual(entry!.info.permissions, Permissions(rawValue: 420))
-//            XCTAssertNil(entry!.info.comment)
-//            XCTAssertEqual(entry!.data, Data())
-//
-//        }
-//        try testHandle.closeCompat()
-//    }
-//
-//    func testEmptyDirectory() throws {
-//        let testHandle = try Constants.handle(forTest: "test_empty_dir", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        try reader.process { (entry: TarEntry?) in
-//            XCTAssertNotNil(entry)
-//            XCTAssertEqual(entry!.info.name, "empty_dir/")
-//            XCTAssertEqual(entry!.info.type, .directory)
-//            XCTAssertEqual(entry!.info.size, 0)
-//            XCTAssertEqual(entry!.info.ownerID, 501)
-//            XCTAssertEqual(entry!.info.groupID, 20)
-//            XCTAssertEqual(entry!.info.ownerUserName, "timofeysolomko")
-//            XCTAssertEqual(entry!.info.ownerGroupName, "staff")
-//            XCTAssertEqual(entry!.info.permissions, Permissions(rawValue: 493))
-//            XCTAssertNil(entry!.info.comment)
-//            XCTAssertNil(entry!.data)
-//        }
-//        try testHandle.closeCompat()
-//    }
-//
-//    func testOnlyDirectoryHeader() throws {
-//        // This tests the correct handling of the situation when there is nothing in the container but one basic header,
-//        // even no EOF marker (two blocks of zeros).
-//        let testHandle = try Constants.handle(forTest: "test_only_dir_header", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        try reader.process { (entry: TarEntry?) in
-//            XCTAssertNotNil(entry)
-//            XCTAssertEqual(entry!.info.name, "empty_dir/")
-//            XCTAssertEqual(entry!.info.type, .directory)
-//            XCTAssertEqual(entry!.info.size, 0)
-//            XCTAssertEqual(entry!.info.ownerID, 501)
-//            XCTAssertEqual(entry!.info.groupID, 20)
-//            XCTAssertEqual(entry!.info.ownerUserName, "timofeysolomko")
-//            XCTAssertEqual(entry!.info.ownerGroupName, "staff")
-//            XCTAssertEqual(entry!.info.permissions, Permissions(rawValue: 493))
-//            XCTAssertNil(entry!.info.comment)
-//            XCTAssertNil(entry!.data)
-//
-//        }
-//        try testHandle.closeCompat()
-//    }
-//
-//    func testEmptyContainer() throws {
-//        let testHandle = try Constants.handle(forTest: "test_empty_cont", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        XCTAssertNil(try reader.read())
-//        try testHandle.closeCompat()
-//    }
-//
-//    func testBigContainer() throws {
-//        let testHandle = try Constants.handle(forTest: "SWCompressionSourceCode", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        while try reader.read() != nil { }
-//        try testHandle.closeCompat()
-//    }
-//
-//    func testUnicodeUstar() throws {
-//        let testHandle = try Constants.handle(forTest: "test_unicode_ustar", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        try reader.process { (entry: TarEntry?) in
-//            XCTAssertNotNil(entry)
-//            XCTAssertEqual(entry!.info.name, "текстовый файл.answer")
-//            XCTAssertEqual(entry!.info.type, .regular)
-//            XCTAssertEqual(entry!.info.ownerID, 501)
-//            XCTAssertEqual(entry!.info.groupID, 20)
-//            XCTAssertEqual(entry!.info.ownerUserName, "timofeysolomko")
-//            XCTAssertEqual(entry!.info.ownerGroupName, "staff")
-//            XCTAssertEqual(entry!.info.permissions, Permissions(rawValue: 420))
-//            XCTAssertNil(entry!.info.comment)
-//            let answerData = try Constants.data(forAnswer: "текстовый файл")
-//            XCTAssertEqual(entry!.data, answerData)
-//
-//        }
-//        try testHandle.closeCompat()
-//    }
-//
-//    func testUnicodePax() throws {
-//        let testHandle = try Constants.handle(forTest: "test_unicode_pax", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        try reader.process { (entry: TarEntry?) in
-//            XCTAssertNotNil(entry)
-//            XCTAssertEqual(entry!.info.name, "текстовый файл.answer")
-//            XCTAssertEqual(entry!.info.type, .regular)
-//            XCTAssertEqual(entry!.info.ownerID, 501)
-//            XCTAssertEqual(entry!.info.groupID, 20)
-//            XCTAssertEqual(entry!.info.ownerUserName, "timofeysolomko")
-//            XCTAssertEqual(entry!.info.ownerGroupName, "staff")
-//            XCTAssertEqual(entry!.info.permissions, Permissions(rawValue: 420))
-//            XCTAssertNil(entry!.info.comment)
-//            let answerData = try Constants.data(forAnswer: "текстовый файл")
-//            XCTAssertEqual(entry!.data, answerData)
-//
-//        }
-//        try testHandle.closeCompat()
-//    }
-//
-//    func testGnuIncrementalFormat() throws {
-//        let testHandle = try Constants.handle(forTest: "test_gnu_inc_format", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        var isFinished = false
-//        var entriesCount = 0
-//        while !isFinished {
-//            isFinished = try reader.process { (entry: TarEntry?) -> Bool in
-//                if entry == nil {
-//                    return true
-//                }
-//                XCTAssertEqual(entry!.info.ownerID, 501)
-//                XCTAssertEqual(entry!.info.groupID, 20)
-//                XCTAssertEqual(entry!.info.ownerUserName, "timofeysolomko")
-//                XCTAssertEqual(entry!.info.ownerGroupName, "staff")
-//                XCTAssertNotNil(entry!.info.accessTime)
-//                XCTAssertNotNil(entry!.info.creationTime)
-//                entriesCount += 1
-//                return false
-//            }
-//        }
-//        XCTAssertEqual(entriesCount, 3)
-//        try testHandle.closeCompat()
-//    }
-//
-//    // This test is impossible to implement using TarReader since the test file doesn't contain actual entry data.
-//    // func testBigNumField() throws { }
-//
-//    func testNegativeMtime() throws {
-//        let testHandle = try Constants.handle(forTest: "test_negative_mtime", withType: TarReaderTests.testType)
-//        var reader = TarReader(fileHandle: testHandle)
-//        try reader.process { (entry: TarEntry?) in
-//            XCTAssertEqual(entry!.info.name, "file")
-//            XCTAssertEqual(entry!.info.type, .regular)
-//            XCTAssertEqual(entry!.info.size, 27)
-//            XCTAssertEqual(entry!.info.ownerID, 501)
-//            XCTAssertEqual(entry!.info.groupID, 20)
-//            XCTAssertEqual(entry!.info.ownerUserName, "timofeysolomko")
-//            XCTAssertEqual(entry!.info.ownerGroupName, "staff")
-//            XCTAssertEqual(entry!.info.permissions, Permissions(rawValue: 420))
-//            XCTAssertEqual(entry!.info.modificationTime, Date(timeIntervalSince1970: -313006414))
-//            XCTAssertNil(entry!.info.comment)
-//            XCTAssertEqual(entry!.data, "File with negative mtime.\n\n".data(using: .utf8))
-//        }
-//        // Test that reading after reaching EOF returns nil.
-//        XCTAssertNil(try reader.read())
-//        try testHandle.closeCompat()
-//    }
+    func testSingleFile() throws {
+        let testHandle = try Constants.handle(forTest: "test_single_file", withType: ArReaderTests.testType)
+        var reader = try ArReader(fileHandle: testHandle)
+        try reader.process { entry in
+            XCTAssertNotNil(entry)
+            guard let entry = entry else { return }
+            
+            XCTAssertEqual(entry.info.name, "debian-binary")
+            XCTAssertEqual(entry.info.size, 4)
+            XCTAssertEqual(entry.info.type, .regular)
+            XCTAssertEqual(entry.info.ownerID, 0)
+            XCTAssertEqual(entry.info.groupID, 0)
+            XCTAssertEqual(entry.info.permissions, Permissions(rawValue: 0o644))
+            XCTAssertNotNil(entry.info.modificationTime)
+            XCTAssertEqual(Int(entry.info.modificationTime!.timeIntervalSinceReferenceDate), 661757961)
+            XCTAssertEqual(entry.data, "2.0\n".data(using: .ascii))
+        }
+        
+        // Test that reading after reaching EOF returns nil.
+        XCTAssertNil(try reader.read())
+        
+        try testHandle.closeCompat()
+    }
+    
+    func testEmptyFiles() throws {
+        let testHandle = try Constants.handle(forTest: "test_empty_files", withType: ArReaderTests.testType)
+        var reader = try ArReader(fileHandle: testHandle)
+        
+        var fileIndex = 1
+        var isFinished = false
+        while !isFinished {
+            isFinished = try reader.process { entry in
+                guard let entry = entry else {
+                    fileIndex -= 1
+                    return true
+                }
+                
+                XCTAssertEqual(entry.info.name, "empty_file_\(fileIndex)")
+                XCTAssertEqual(entry.info.type, .regular)
+                XCTAssertEqual(entry.info.size, 0)
+                XCTAssertEqual(entry.info.ownerID, 0)
+                XCTAssertEqual(entry.info.groupID, 0)
+                XCTAssertEqual(entry.info.permissions, Permissions(rawValue: 0o644))
+                XCTAssertEqual(entry.data, Data())
+                
+                fileIndex += 1
+                return false
+            }
+        }
+        
+        XCTAssertEqual(fileIndex, 5)
+        
+        // Test that reading after reaching EOF returns nil.
+        XCTAssertNil(try reader.read())
+        
+        try testHandle.closeCompat()
+    }
+
+    func testEmptyContainer() throws {
+        let testHandle = try Constants.handle(forTest: "test_empty", withType: ArReaderTests.testType)
+        var reader = try ArReader(fileHandle: testHandle)
+        XCTAssertNil(try reader.read())
+        try testHandle.closeCompat()
+    }
+    
+    func testBigContainer() throws {
+        let testHandle = try Constants.handle(forTest: "test_big_container", withType: ArReaderTests.testType)
+        var reader = try ArReader(fileHandle: testHandle)
+        var hasLargeEntry = false
+        while !hasLargeEntry {
+            hasLargeEntry = try reader.process { entry -> Bool in
+                guard let entrySize = entry?.info.size else { return false }
+                return entrySize > 20_000_000
+            }
+        }
+        XCTAssertTrue(hasLargeEntry)
+    }
+    
+    // This test is impossible to implement using ArReader since the test file doesn't contain actual entry data.
+    // func testBigNumField() throws { }
+
+    func testNegativeMtime() throws {
+        let testHandle = try Constants.handle(forTest: "test_negative_mtime", withType: ArReaderTests.testType)
+        var reader = try ArReader(fileHandle: testHandle)
+        
+        try reader.next()
+        try reader.process { entry in
+            XCTAssertNotNil(entry)
+            guard let entry = entry else { return }
+            
+            XCTAssertEqual(entry.info.name, "control.tar.gz")
+            XCTAssertEqual(entry.info.type, .regular)
+            XCTAssertEqual(entry.info.size, 398)
+            XCTAssertEqual(entry.info.ownerID, 0)
+            XCTAssertEqual(entry.info.groupID, 0)
+            XCTAssertEqual(entry.info.permissions, Permissions(rawValue: 0o755))
+            XCTAssertEqual(entry.info.modificationTime, Date(timeIntervalSince1970: -597_958_170))
+        }
+        try reader.next()
+        
+        // Test that reading after reaching EOF returns nil.
+        XCTAssertNil(try reader.read())
+        
+        try testHandle.closeCompat()
+    }
 
 }
