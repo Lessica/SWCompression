@@ -13,11 +13,12 @@ import BitByteData
 struct ArHeader {
     
     static let signature = "!<arch>\n"
-    static let length = 60
+    static let commonLength = 60
+    static let longNameFlag = "#1/"
     
     enum HeaderEntryType {
         case signature
-        case normal(ContainerEntryType)
+        case common(ContainerEntryType)
     }
     
     let name: String
@@ -25,7 +26,20 @@ struct ArHeader {
     let uid: Int?
     let gid: Int?
     let permissions: Permissions?
-    let size: Int
+    
+    /**
+     Length of long name.
+     
+     - Note: For `bsd` format, it is always `0`.
+     */
+    let extraNameSize: Int
+    let dataSize: Int
+    
+    /**
+     It equals to `extraNameSize + dataSize`.
+     */
+    var size: Int { extraNameSize + dataSize }
+    
     let type: HeaderEntryType
     
     let format: ArContainer.Format
@@ -33,7 +47,7 @@ struct ArHeader {
     
     init(_ reader: LittleEndianByteReader) throws {
         self.blockStartIndex = reader.offset
-        self.name = reader.arCString(maxLength: 16)
+        let name = reader.arCString(maxLength: 16)
         
         if let mtime = reader.arInt(maxLength: 12) {
             self.mtime = Date(timeIntervalSince1970: TimeInterval(mtime))
@@ -50,14 +64,29 @@ struct ArHeader {
         }
         
         guard let size = reader.arInt(maxLength: 10)
-            else { throw ArError.wrongField }
-        self.size = size
+            else { throw ArError.wrongField("size") }
         
         let endChar = reader.arCString(maxLength: 2)
         guard endChar == "`\n" else { throw ArError.wrongEndChar }
         
-        self.type = .normal(.regular)
-        self.format = .bsd
+        self.type = .common(.regular)
+        if name.hasPrefix(ArHeader.longNameFlag) {
+            guard let longNameSize = Int(name.dropFirst(ArHeader.longNameFlag.count)) else {
+                throw ArError.wrongField("identifier")
+            }
+            guard reader.bytesLeft >= longNameSize else {
+                throw InternalArError.headerNeedsMoreBytes(longNameSize)
+            }
+            self.extraNameSize = longNameSize
+            self.name = reader.arCString(maxLength: longNameSize)
+            self.dataSize = size - longNameSize
+            self.format = .bsd4_4
+        } else {
+            self.extraNameSize = 0
+            self.name = name
+            self.dataSize = size
+            self.format = .bsd
+        }
     }
     
 }

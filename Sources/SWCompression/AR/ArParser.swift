@@ -15,7 +15,11 @@ struct ArParser {
         case truncated
         case finished
         case specialEntry(ArHeader.HeaderEntryType)
-        case entryInfo(ArEntryInfo, Int, ArContainer.Format)
+        case entryInfo(
+            _ info: ArEntryInfo,
+            _ format: ArContainer.Format,
+            _ dataRange: Range<Int>
+        )
     }
     
     private let reader: LittleEndianByteReader
@@ -47,20 +51,25 @@ struct ArParser {
             return .specialEntry(.signature)
         }
         
-        guard reader.bytesLeft >= ArHeader.length else {
+        guard reader.bytesLeft >= ArHeader.commonLength else {
             return .truncated
         }
         
         let header = try ArHeader(reader)
-        // For header we read at 60 bytes exactly.
-        assert(reader.offset - header.blockStartIndex == ArHeader.length)
+        
         // Check, just in case, since we use blockStartIndex = -1 when creating AR containers.
         assert(header.blockStartIndex >= 0)
         
-        let dataStartIndex = header.blockStartIndex + ArHeader.length
-        let info = ArEntryInfo(header)
+        // For header we read at least 60 bytes.
+        assert(reader.offset - header.blockStartIndex >= ArHeader.commonLength)
+        
         // Skip file data.
-        reader.offset = dataStartIndex + header.size.roundToEven()
-        return .entryInfo(info, header.blockStartIndex, header.format)
+        let info = ArEntryInfo(header)
+        let startIndex = header.blockStartIndex + ArHeader.commonLength
+        let dataStartIndex = startIndex + header.extraNameSize
+        let dataEndIndex = startIndex + header.size
+        reader.offset = dataEndIndex.roundToEven()
+        
+        return .entryInfo(info, header.format, dataStartIndex..<dataEndIndex)
     }
 }

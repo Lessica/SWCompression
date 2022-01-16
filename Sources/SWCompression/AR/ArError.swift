@@ -22,7 +22,11 @@ public enum ArError: Error {
     /// File identifier contains non-ASCII character(s).
     case invalidIdentifier
     /// Failed to process a *required* AR header's field.
-    case wrongField
+    case wrongField(_ fieldName: String)
     /// A header doesn't end with `` `\n ``.
     case wrongEndChar
+}
+
+enum InternalArError: Error {
+    case headerNeedsMoreBytes(_ bytesRequired: Int)
 }

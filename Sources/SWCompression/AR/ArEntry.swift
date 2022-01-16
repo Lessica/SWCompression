@@ -21,7 +21,7 @@ public struct ArEntry: ContainerEntry {
      */
     public var data: Data? {
         didSet {
-            self.info.size = self.data?.count ?? 0
+            info.size = data?.count ?? 0
         }
     }
 

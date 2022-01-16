@@ -29,58 +29,78 @@ public struct ArReader {
     
     @discardableResult
     public mutating func read() throws -> ArEntry? {
-        let headerData = try getData(size: ArHeader.length)
-        if headerData.count == 0 {
+        guard let header = try nextHeader() else {
             return nil
-        } else if headerData.count < ArHeader.length {
-            throw DataError.truncated
         }
-        assert(headerData.count == ArHeader.length)
-
-        let headerReader = LittleEndianByteReader(data: headerData)
-        let header = try ArHeader(headerReader)
-
-        // Differ from `TarReader`, we must proceed all 60 bytes initialized for the header.
-        assert(headerReader.isFinished)
-
-        // Check, just in case, since we use blockStartIndex = -1 when creating AR containers.
-        assert(header.blockStartIndex >= 0)
-
-        let dataStartOffset = try getOffset()
-        let entryData = try getData(size: header.size)
-        guard entryData.count == header.size
+        
+        let currentOffset = try Int(getOffset())
+        let entryData = try getData(size: header.dataSize)
+        guard entryData.count == header.dataSize
         else { throw DataError.truncated }
+        
+        let nextOffset = UInt64(truncatingIfNeeded: (currentOffset + header.dataSize).roundToEven())
 
         let info = ArEntryInfo(header)
-        try set(offset: dataStartOffset + UInt64(truncatingIfNeeded: header.size.roundToEven()))
+        try set(offset: nextOffset)
         return ArEntry(info: info, data: entryData)
     }
     
     @discardableResult
     public mutating func next() throws -> ArEntryInfo? {
-        let headerData = try getData(size: ArHeader.length)
+        guard let header = try nextHeader() else {
+            return nil
+        }
+
+        let currentOffset = try Int(getOffset())
+        
+        // Will not copy actual data in this context
+        let nextOffset = UInt64(truncatingIfNeeded: (currentOffset + header.dataSize).roundToEven())
+        
+        let info = ArEntryInfo(header)
+        try set(offset: nextOffset)
+        return info
+    }
+    
+    private func nextHeader() throws -> ArHeader? {
+        let beginOffset = try getOffset()
+        let headerData = try getData(size: ArHeader.commonLength)
         if headerData.count == 0 {
             return nil
-        } else if headerData.count < ArHeader.length {
+        } else if headerData.count < ArHeader.commonLength {
             throw DataError.truncated
         }
-        assert(headerData.count == ArHeader.length)
+        assert(headerData.count == ArHeader.commonLength)
         
-        let headerReader = LittleEndianByteReader(data: headerData)
-        let header = try ArHeader(headerReader)
+        var headerReader: LittleEndianByteReader
+        var header: ArHeader
+        do {
+            headerReader = LittleEndianByteReader(data: headerData)
+            header = try ArHeader(headerReader)
+        } catch InternalArError.headerNeedsMoreBytes(let bytesRequired) {
+            
+            // Rollback to original offset
+            try set(offset: beginOffset)
+            
+            let headerLength = ArHeader.commonLength + bytesRequired
+            let headerData = try getData(size: headerLength)
+            if headerData.count == 0 {
+                return nil
+            } else if headerData.count < headerLength {
+                throw DataError.truncated
+            }
+            assert(headerData.count == headerLength)
+            
+            headerReader = LittleEndianByteReader(data: headerData)
+            header = try ArHeader(headerReader)
+        }
 
         // Differ from `TarReader`, we must proceed all 60 bytes initialized for the header.
         assert(headerReader.isFinished)
 
         // Check, just in case, since we use blockStartIndex = -1 when creating AR containers.
         assert(header.blockStartIndex >= 0)
-
-        // Will not copy actual data in this context
-        let dataStartOffset = try getOffset()
         
-        let info = ArEntryInfo(header)
-        try set(offset: dataStartOffset + UInt64(truncatingIfNeeded: header.size.roundToEven()))
-        return info
+        return header
     }
 
     private func getOffset() throws -> UInt64 {

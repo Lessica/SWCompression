@@ -76,7 +76,7 @@ public struct ArEntryInfo: ContainerEntryInfo {
         self.name = header.name
         self.modificationTime = header.mtime
         self.permissions = header.permissions
-        self.size = header.size
+        self.size = header.dataSize
         self.accessTime = nil
         self.creationTime = nil
         self.ownerID = header.uid

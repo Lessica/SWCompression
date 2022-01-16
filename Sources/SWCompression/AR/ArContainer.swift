@@ -37,20 +37,20 @@ public class ArContainer: Container {
      */
     public static func formatOf(container data: Data) throws -> Format {
         var parser = ArParser(data)
-
+        
         parsingLoop: while true {
             let result = try parser.next()
             switch result {
             case .specialEntry:
                 continue parsingLoop
-            case .entryInfo(_, _, let headerFormat):
-                switch headerFormat {
+            case .entryInfo(_, let format, _):
+                switch format {
                 case .systemV:
                     fatalError("Unexpected format of basic header: systemV.")
                 case .bsd4_4:
-                    fatalError("Support of common format with long filenames are not implemented.")
+                    fallthrough
                 case .bsd:
-                    break
+                    return format
                 }
             case .truncated:
                 // We don't have an error with a more suitable name.
@@ -60,6 +60,7 @@ public class ArContainer: Container {
             }
         }
 
+        // If the container is empty, we assume that it's a common format.
         return .bsd
     }
     
@@ -85,13 +86,11 @@ public class ArContainer: Container {
             switch result {
             case .specialEntry:
                 continue parsingLoop
-            case .entryInfo(let info, let blockStartIndex, _):
-                let dataStartIndex = blockStartIndex + ArHeader.length
-                let dataEndIndex = dataStartIndex + info.size!
+            case .entryInfo(let info, _, let dataRange):
                 // Verify that data is not truncated.
-                guard dataStartIndex > data.startIndex && dataEndIndex <= data.endIndex
+                guard dataRange.startIndex > data.startIndex && dataRange.endIndex <= data.endIndex
                     else { throw ArError.tooSmallFileIsPassed }
-                let entryData = data.subdata(in: dataStartIndex..<dataEndIndex)
+                let entryData = data.subdata(in: dataRange)
                 entries.append(ArEntry(info: info, data: entryData))
             case .truncated:
                 // We don't have an error with a more suitable name.
