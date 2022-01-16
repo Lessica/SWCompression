@@ -5,7 +5,12 @@
 
 A framework with (de)compression algorithms and functions for working with various archives and containers.
 
-This is another maintained fork of [tsolomko](https://github.com/tsolomko)'s [SWCompression](https://github.com/tsolomko/SWCompression).
+This is another maintained fork of [tsolomko](https://github.com/tsolomko)'s [SWCompression](https://github.com/tsolomko/SWCompression) with following changes:
+
+- AR support
+- Debian Package (.deb) support
+- Remove obsolete package managers
+- Embedded unit tests
 
 ## What is this?
 
@@ -15,7 +20,7 @@ SWCompression is a framework with a collection of functions for:
 2. Reading (and sometimes writing) archives of different formats.
 3. Reading (and sometimes writing) containers such as ZIP, TAR and 7-Zip.
 
-It also works on Apple platforms, Linux, __and Windows__.
+**This fork tested on Apple platforms only.**
 
 All features are listed in the tables below. "TBD" means that feature is planned but not implemented (yet).
 
@@ -33,7 +38,9 @@ Also, SWCompression is _written with Swift only._
 
 ## Installation
 
-This fork of [SWCompression](https://github.com/tsolomko/SWCompression) can be integrated into your project using Swift Package Manager.
+This fork of [SWCompression](https://github.com/tsolomko/SWCompression) can be integrated into your project using *Swift Package Manager*.
+
+**Obsolete package managers like *Cocoapods* and *Carthage* were removed.**
 
 ### Swift Package Manager
 
