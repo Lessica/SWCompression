@@ -6,12 +6,11 @@
 //  Copyright © 2022 Timofey Solomko. All rights reserved.
 //
 
-import Foundation
 import BitByteData
+import Foundation
 
 /// Provides functions for work with AR containers.
 public class ArContainer: Container {
-    
     /**
      Represents the "format" of a AR container: a minimal set of extensions to basic AR format required to
      successfully read a particular container.
@@ -24,7 +23,7 @@ public class ArContainer: Container {
         /// not implemented
         case systemV
     }
-    
+
     /**
      Processes AR container and returns its "format": a minimal set of extensions to basic AR format required to
      successfully read this container.
@@ -37,13 +36,13 @@ public class ArContainer: Container {
      */
     public static func formatOf(container data: Data) throws -> Format {
         var parser = ArParser(data)
-        
+
         parsingLoop: while true {
             let result = try parser.next()
             switch result {
             case .specialEntry:
                 continue parsingLoop
-            case .entryInfo(_, let format, _):
+            case let .entryInfo(_, format, _):
                 switch format {
                 case .systemV:
                     fatalError("Unexpected format of basic header: systemV.")
@@ -63,7 +62,95 @@ public class ArContainer: Container {
         // If the container is empty, we assume that it's a common format.
         return .bsd
     }
-    
+
+    /**
+     Creates a new AR container with `entries` as its content and generates its `Data`.
+
+     - Parameter entries: AR entries to store in the container.
+
+     - SeeAlso: `ArEntryInfo` properties documenation to see how their values are connected with the specific AR
+     format used during container creation.
+     */
+    public static func create(from entries: [ArEntry]) throws -> Data {
+        return try create(from: entries, force: .bsd)
+    }
+
+    /**
+     Creates a new AR container with `entries` as its content and generates its `Data` using the specified `format`.
+
+     This function forces the usage of the `format`, meaning that certain properties about the `entries` may be missing
+     from the resulting container data if the chosen format doesn't support certain features. For example, relatively
+     long names (and linknames) will be truncated if the `.bsd` format is specified.
+
+     It is highly recommended to use the `ArContainer.create(from:)` function (or use the `.bsd` format) to ensure the
+     best compatible of the `entries` in the output. Other (non-PAX) formats should only be used if you have a
+     specific need for them and you understand limitations of those formats.
+
+     - Parameter entries: AR entries to store in the container.
+     - Parameter force: For the usage of the specified format.
+
+     - SeeAlso: `ArEntryInfo` properties documenation to see how their values are connected with the specific AR
+     format used during container creation.
+     */
+    public static func create(from entries: [ArEntry], force format: ArContainer.Format) throws -> Data {
+        var out = Data()
+        try out.append(arString: ArHeader.signature)
+        
+        for entry in entries {
+            let entryOffset = out.count
+            let entryName = entry.info.name
+            let entryNameLength = entryName.lengthOfBytes(using: .ascii).roundToEven()
+
+            switch format {
+            case .bsd:
+                guard entryNameLength <= 16 else {
+                    throw ArError.tooLongIdentifier
+                }
+                try out.append(arString: entry.info.name, maxLength: 16)
+            case .bsd4_4:
+                try out.append(arString: ArHeader.longNameFlag)
+                try out.append(arInt: entryNameLength, maxLength: 13)
+            case .systemV:
+                fatalError("Not implemented")
+            }
+
+            let entryModificationTime = entry.info.modificationTime ?? Date()
+            let mtime = Int(entryModificationTime.timeIntervalSince1970)
+            try out.append(arInt: mtime, maxLength: 12)
+
+            let entryOwnerID = entry.info.ownerID ?? 0
+            try out.append(arInt: entryOwnerID, maxLength: 6)
+
+            let entryGroupID = entry.info.groupID ?? 0
+            try out.append(arInt: entryGroupID, maxLength: 6)
+
+            let entryPermissions = entry.info.permissions?.rawValue ?? 0o100644
+            let entryMode = String(entryPermissions, radix: 8, uppercase: false)
+            try out.append(arString: entryMode, maxLength: 8)
+
+            var entrySize = entry.data?.count ?? 0
+            switch format {
+            case .bsd4_4:
+                entrySize += entryNameLength
+            default: break
+            }
+            try out.append(arInt: entrySize, maxLength: 10)
+
+            try out.append(arString: "`\n")
+            assert(out.count - entryOffset == 60)
+
+            switch format {
+            case .bsd4_4:
+                try out.append(arString: entryName, padChar: 0x00, maxLength: entryNameLength)
+            default: break
+            }
+            
+            out.appendAsArBlock(entry.data ?? Data())
+        }
+        
+        return out
+    }
+
     /**
      Processes AR container and returns an array of `ArEntry` with information and data for all entries.
 
@@ -86,10 +173,10 @@ public class ArContainer: Container {
             switch result {
             case .specialEntry:
                 continue parsingLoop
-            case .entryInfo(let info, _, let dataRange):
+            case let .entryInfo(info, _, dataRange):
                 // Verify that data is not truncated.
                 guard dataRange.startIndex > data.startIndex && dataRange.endIndex <= data.endIndex
-                    else { throw ArError.tooSmallFileIsPassed }
+                else { throw ArError.tooSmallFileIsPassed }
                 let entryData = data.subdata(in: dataRange)
                 entries.append(ArEntry(info: info, data: entryData))
             case .truncated:
@@ -125,7 +212,7 @@ public class ArContainer: Container {
             switch result {
             case .specialEntry:
                 continue parsingLoop
-            case .entryInfo(let info, _, _):
+            case let .entryInfo(info, _, _):
                 entries.append(info)
             case .truncated:
                 // We don't have an error with a more suitable name.
@@ -137,5 +224,4 @@ public class ArContainer: Container {
 
         return entries
     }
-    
 }

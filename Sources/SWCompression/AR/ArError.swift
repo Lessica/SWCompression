@@ -25,6 +25,10 @@ public enum ArError: Error {
     case wrongField(_ fieldName: String)
     /// A header doesn't end with `` `\n ``.
     case wrongEndChar
+    /// One of the `ArEntryInfo`'s properties exceeds its maximum length limit.
+    case overflow
+    /// One of the `ArEntryInfo`'s string properties (such as `name`) cannot be encoded with ASCII encoding.
+    case asciiNonEncodable
 }
 
 enum InternalArError: Error {

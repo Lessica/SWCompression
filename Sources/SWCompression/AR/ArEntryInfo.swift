@@ -72,6 +72,18 @@ public struct ArEntryInfo: ContainerEntryInfo {
      */
     public var groupID: Int?
     
+    /**
+     Initializes the entry's info with its name and type.
+
+     - Note: Entry's type cannot be modified after initialization.
+
+     - Parameter name: Entry's name.
+     - Parameter type: Entry's type.
+     */
+    public init(name: String) {
+        self.name = name
+    }
+    
     init(_ header: ArHeader) {
         self.name = header.name
         self.modificationTime = header.mtime

@@ -30,7 +30,7 @@ struct ArHeader {
     /**
      Length of long name.
      
-     - Note: For `bsd` format, it is always `0`.
+     - Note: For `.bsd` format, it is always `0`.
      */
     let extraNameSize: Int
     let dataSize: Int
