@@ -249,7 +249,7 @@ class TarTests: XCTestCase {
         XCTAssertEqual(entries[0].info.permissions, Permissions(rawValue: 420))
         XCTAssertNil(entries[0].info.comment)
 
-        let answerData = try Constants.data(forAnswer: "текстовый файл")
+        let answerData = try Constants.data(forAnswer: "test_unicode")
 
         XCTAssertEqual(entries[0].data, answerData)
     }
@@ -271,7 +271,7 @@ class TarTests: XCTestCase {
         XCTAssertEqual(entries[0].info.permissions, Permissions(rawValue: 420))
         XCTAssertNil(entries[0].info.comment)
 
-        let answerData = try Constants.data(forAnswer: "текстовый файл")
+        let answerData = try Constants.data(forAnswer: "test_unicode")
 
         XCTAssertEqual(entries[0].data, answerData)
     }

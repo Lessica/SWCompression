@@ -128,7 +128,7 @@ class ZipTests: XCTestCase {
         XCTAssertNotNil(entries[0].info.accessTime)
         XCTAssertNil(entries[0].info.creationTime)
 
-        let answerData = try Constants.data(forAnswer: "текстовый файл")
+        let answerData = try Constants.data(forAnswer: "test_unicode")
         XCTAssertEqual(entries[0].data, answerData)
     }
 
@@ -343,7 +343,7 @@ class ZipTests: XCTestCase {
             XCTAssertNotNil(entries[0].info.accessTime)
             XCTAssertNil(entries[0].info.creationTime)
 
-            let answerData = try Constants.data(forAnswer: "текстовый файл")
+            let answerData = try Constants.data(forAnswer: "test_unicode")
             XCTAssertEqual(entries[0].data, answerData)
         } else {
             XCTFail("Unexpected error: \(String(describing: thrownError))")

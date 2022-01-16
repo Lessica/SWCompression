@@ -97,57 +97,65 @@ public class ArContainer: Container {
         try out.append(arString: ArHeader.signature)
         
         for entry in entries {
-            let entryOffset = out.count
-            let entryName = entry.info.name
-            let entryNameLength = entryName.lengthOfBytes(using: .ascii).roundToEven()
-
-            switch format {
-            case .bsd:
-                guard entryNameLength <= 16 else {
-                    throw ArError.tooLongIdentifier
-                }
-                try out.append(arString: entry.info.name, maxLength: 16)
-            case .bsd4_4:
-                try out.append(arString: ArHeader.longNameFlag)
-                try out.append(arInt: entryNameLength, maxLength: 13)
-            case .systemV:
-                fatalError("Not implemented")
-            }
-
-            let entryModificationTime = entry.info.modificationTime ?? Date()
-            let mtime = Int(entryModificationTime.timeIntervalSince1970)
-            try out.append(arInt: mtime, maxLength: 12)
-
-            let entryOwnerID = entry.info.ownerID ?? 0
-            try out.append(arInt: entryOwnerID, maxLength: 6)
-
-            let entryGroupID = entry.info.groupID ?? 0
-            try out.append(arInt: entryGroupID, maxLength: 6)
-
-            let entryPermissions = entry.info.permissions?.rawValue ?? 0o100644
-            let entryMode = String(entryPermissions, radix: 8, uppercase: false)
-            try out.append(arString: entryMode, maxLength: 8)
-
-            var entrySize = entry.data?.count ?? 0
-            switch format {
-            case .bsd4_4:
-                entrySize += entryNameLength
-            default: break
-            }
-            try out.append(arInt: entrySize, maxLength: 10)
-
-            try out.append(arString: "`\n")
-            assert(out.count - entryOffset == 60)
-
-            switch format {
-            case .bsd4_4:
-                try out.append(arString: entryName, padChar: 0x00, maxLength: entryNameLength)
-            default: break
-            }
-            
-            out.appendAsArBlock(entry.data ?? Data())
+            let entryData = try data(for: entry, force: format)
+            out.appendAsArBlock(entryData)
         }
         
+        return out
+    }
+    
+    static func data(for entry: ArEntry, force format: ArContainer.Format) throws -> Data {
+        var out = Data()
+        
+        let entryOffset = 0
+        let entryName = entry.info.name
+        let entryNameLength = entryName.lengthOfBytes(using: .ascii).roundToEven()
+
+        switch format {
+        case .bsd:
+            guard entryNameLength <= 16 else {
+                throw ArError.tooLongIdentifier
+            }
+            try out.append(arString: entry.info.name, maxLength: 16)
+        case .bsd4_4:
+            try out.append(arString: ArHeader.longNameFlag)
+            try out.append(arInt: entryNameLength, maxLength: 13)
+        case .systemV:
+            fatalError("Not implemented")
+        }
+
+        let entryModificationTime = entry.info.modificationTime ?? Date()
+        let mtime = Int(entryModificationTime.timeIntervalSince1970)
+        try out.append(arInt: mtime, maxLength: 12)
+
+        let entryOwnerID = entry.info.ownerID ?? 0
+        try out.append(arInt: entryOwnerID, maxLength: 6)
+
+        let entryGroupID = entry.info.groupID ?? 0
+        try out.append(arInt: entryGroupID, maxLength: 6)
+
+        let entryPermissions = entry.info.permissions?.rawValue ?? 0o100644
+        let entryMode = String(entryPermissions, radix: 8, uppercase: false)
+        try out.append(arString: entryMode, maxLength: 8)
+
+        var entrySize = entry.data?.count ?? 0
+        switch format {
+        case .bsd4_4:
+            entrySize += entryNameLength
+        default: break
+        }
+        try out.append(arInt: entrySize, maxLength: 10)
+
+        try out.append(arString: "`\n")
+        assert(out.count - entryOffset == 60)
+
+        switch format {
+        case .bsd4_4:
+            try out.append(arString: entryName, padChar: 0x00, maxLength: entryNameLength)
+        default: break
+        }
+        
+        out.appendAsArBlock(entry.data ?? Data())
         return out
     }
 

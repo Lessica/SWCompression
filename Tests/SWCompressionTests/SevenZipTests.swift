@@ -300,7 +300,7 @@ class SevenZipTests: XCTestCase {
         XCTAssertEqual(entries[0].info.isAnti, false)
         XCTAssertEqual(entries[0].info.crc, 0xA139BCEE)
 
-        let answerData = try Constants.data(forAnswer: "текстовый файл")
+        let answerData = try Constants.data(forAnswer: "test_unicode")
         XCTAssertEqual(entries[0].data, answerData)
     }
 

@@ -1,5 +1,5 @@
 //
-//  ArCreateTests.swift
+//  ArWriterTests.swift
 //  SWCompressionTests
 //
 //  Created by Lessica <82flex@gmail.com> on 2022/1/16.
@@ -9,26 +9,56 @@
 import XCTest
 import SWCompression
 
-class ArCreateTests: XCTestCase {
+class ArWriterTests: XCTestCase {
     
     private static let testType: String = "ar"
+    private static let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("TestSWCompression-" + UUID().uuidString, isDirectory: true)
+
+    class override func setUp() {
+        do {
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true, attributes: nil)
+        } catch let error {
+            fatalError("ArWriterTests.setUp(): unable to create temporary directory: \(error)")
+        }
+    }
+
+    class override func tearDown() {
+        do {
+            try FileManager.default.removeItem(at: tempDir)
+        } catch let error {
+            fatalError("ArWriterTests.tearDown(): unable to remove temporary directory: \(error)")
+        }
+    }
+
+    private static func generateContainerData(_ entries: [ArEntry], format: ArContainer.Format = .bsd) throws -> Data {
+        let tempFileUrl = tempDir.appendingPathComponent(UUID().uuidString, isDirectory: false)
+        try "".write(to: tempFileUrl, atomically: true, encoding: .utf8)
+        let handle = try FileHandle(forWritingTo: tempFileUrl)
+        var writer = try ArWriter(fileHandle: handle, force: format)
+        for entry in entries {
+            try writer.append(entry)
+        }
+        try writer.finalize()
+        try handle.closeCompat()
+        return try Data(contentsOf: tempFileUrl)
+    }
 
     func test1() throws {
         var info = ArEntryInfo(name: "file.txt")
         info.ownerID = 501
         info.groupID = 20
-        info.permissions = Permissions(rawValue: 0o644)
-        
-        // We have to convert time interval to int, since ar can't store fractional timestamps, so we lose in accuracy.
+        info.permissions = Permissions(rawValue: 420)
+        // We have to convert time interval to int, since tar can't store fractional timestamps, so we lose in accuracy.
         let intTimeInterval = Int(Date().timeIntervalSince1970)
         let date = Date(timeIntervalSince1970: Double(intTimeInterval))
         info.modificationTime = date
         info.creationTime = date
         info.accessTime = date
-
         let data = Data("Hello, World!\n".utf8)
         let entry = ArEntry(info: info, data: data)
-        let containerData = try ArContainer.create(from: [entry])
+
+        let containerData = try ArWriterTests.generateContainerData([entry])
         XCTAssertEqual(try ArContainer.formatOf(container: containerData), .bsd)
         let newEntries = try ArContainer.open(container: containerData)
 
@@ -38,7 +68,7 @@ class ArCreateTests: XCTestCase {
         XCTAssertEqual(newEntries[0].info.size, 14)
         XCTAssertEqual(newEntries[0].info.ownerID, 501)
         XCTAssertEqual(newEntries[0].info.groupID, 20)
-        XCTAssertEqual(newEntries[0].info.permissions, Permissions(rawValue: 0o644))
+        XCTAssertEqual(newEntries[0].info.permissions, Permissions(rawValue: 420))
         XCTAssertEqual(newEntries[0].info.modificationTime, date)
         XCTAssertNil(newEntries[0].info.creationTime)
         XCTAssertNil(newEntries[0].info.accessTime)
@@ -60,14 +90,15 @@ class ArCreateTests: XCTestCase {
         info.permissions?.insert(.executeOwner)
         info.ownerID = 250
         info.groupID = 250
-
-        let containerData = try ArContainer.create(from: [ArEntry(info: info, data: dictData)])
+        
+        let entry = ArEntry(info: info, data: dictData)
+        let containerData = try ArWriterTests.generateContainerData([entry])
         XCTAssertEqual(try ArContainer.formatOf(container: containerData), .bsd)
         let newInfo = try ArContainer.open(container: containerData)[0]
 
         XCTAssertEqual(newInfo.info.name, "symbolic-link")
         XCTAssertEqual(newInfo.info.type, .regular)
-        XCTAssertEqual(newInfo.info.permissions?.rawValue, 0o744)
+        XCTAssertEqual(newInfo.info.permissions, Permissions(rawValue: 0o744))
         XCTAssertEqual(newInfo.info.ownerID, 250)
         XCTAssertEqual(newInfo.info.groupID, 250)
         XCTAssertEqual(newInfo.info.size, dictData.count)
@@ -82,10 +113,11 @@ class ArCreateTests: XCTestCase {
         info.name = "path/to/"
         info.name.append(String(repeating: "readme/", count: 15))
         info.name.append("readme.txt")
+        let entry = ArEntry(info: info, data: Data())
         
-        XCTAssertThrowsError(try ArContainer.create(from: [ArEntry(info: info, data: Data())]))
+        XCTAssertThrowsError(try ArWriterTests.generateContainerData([entry], format: .bsd))
 
-        let containerData = try ArContainer.create(from: [ArEntry(info: info, data: Data())], force: .bsd4_4)
+        let containerData = try ArWriterTests.generateContainerData([entry], format: .bsd4_4)
         XCTAssertEqual(try ArContainer.formatOf(container: containerData), .bsd4_4)
         let newInfo = try ArContainer.open(container: containerData)[0].info
         
@@ -97,8 +129,9 @@ class ArCreateTests: XCTestCase {
         info.name = "path/to/"
         info.name.append(String(repeating: "readme/", count: 25))
         info.name.append("readme.txt")
+        let entry = ArEntry(info: info, data: Data())
 
-        let containerData = try ArContainer.create(from: [ArEntry(info: info, data: Data())], force: .bsd4_4)
+        let containerData = try ArWriterTests.generateContainerData([entry], format: .bsd4_4)
         XCTAssertEqual(try ArContainer.formatOf(container: containerData), .bsd4_4)
         let newInfo = try ArContainer.open(container: containerData)[0].info
 
@@ -109,8 +142,9 @@ class ArCreateTests: XCTestCase {
         let date = Date(timeIntervalSince1970: -1300000)
         var info = ArEntryInfo(name: "file.txt")
         info.modificationTime = date
+        let entry = ArEntry(info: info, data: Data())
 
-        let containerData = try ArContainer.create(from: [ArEntry(info: info, data: Data())])
+        let containerData = try ArWriterTests.generateContainerData([entry])
         XCTAssertEqual(try ArContainer.formatOf(container: containerData), .bsd)
         let newInfo = try ArContainer.open(container: containerData)[0].info
 
@@ -127,16 +161,16 @@ class ArCreateTests: XCTestCase {
     
     func testDebianPackage() throws {
         var testData: Data
-        testData = try Constants.data(forTest: "test_classdump", withType: ArCreateTests.testType)
+        testData = try Constants.data(forTest: "test_classdump", withType: ArWriterTests.testType)
         XCTAssertEqual(try ArContainer.formatOf(container: testData), .bsd)
         
         let testEnteries = try ArContainer.open(container: testData)
         XCTAssertEqual(testEnteries.count, 3)
         
-        testData = try ArContainer.create(from: testEnteries, force: .bsd4_4)
+        testData = try ArWriterTests.generateContainerData(testEnteries, format: .bsd4_4)
         XCTAssertEqual(try ArContainer.formatOf(container: testData), .bsd4_4)
         
-        testData = try ArContainer.create(from: testEnteries, force: .bsd)
+        testData = try ArWriterTests.generateContainerData(testEnteries, format: .bsd)
         XCTAssertEqual(try ArContainer.formatOf(container: testData), .bsd)
         
         let entries = try ArContainer.open(container: testData)
