@@ -32,7 +32,7 @@ All features are listed in the tables below. "TBD" means that feature is planned
 |       | Zlib | GZip | XZ  | ZIP | TAR | 7-Zip | AR  |
 | ----- | ---- | ---- | --- | --- | --- | ----- | --- |
 | Read  | ✅   | ✅    | ✅  | ✅  | ✅   | ✅    | ✅  |
-| Write | ✅   | ✅    | TBD | TBD | ✅   | TBD   | TBD |
+| Write | ✅   | ✅    | TBD | TBD | ✅   | TBD   | ✅ |
 
 Also, SWCompression is _written with Swift only._
 
